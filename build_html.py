@@ -8,13 +8,15 @@ with open("episodes_tagged.json", encoding="utf-8") as f:
 
 episodes_json = json.dumps(episodes, ensure_ascii=False)
 
+QA_PROXY_URL = "https://breakfast-leadership-qa.michael-4ac.workers.dev"
+
 html = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Breakfast Leadership Show — Episode Knowledge Base</title>
-<script src="config.js"></script>
+<script>window.QA_PROXY_URL = '{QA_PROXY_URL}';</script>
 <style>
   :root {{
     --bg: #f8f9fa;
