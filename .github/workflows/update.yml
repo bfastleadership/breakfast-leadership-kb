@@ -1,0 +1,44 @@
+name: Update Episode Knowledge Base
+
+on:
+  schedule:
+    - cron: '0 9 * * *'   # runs daily at 9am UTC (5am Eastern)
+  workflow_dispatch:        # also allows manual trigger from GitHub UI
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install anthropic
+
+      - name: Fetch latest episodes
+        run: python fetch_episodes.py
+
+      - name: Tag episodes (AI)
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: python tag_episodes.py
+
+      - name: Rebuild knowledge base HTML
+        run: python build_html.py
+
+      - name: Commit and push if changed
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add episodes.json episodes_tagged.json index.html
+          git diff --staged --quiet || git commit -m "chore: update episodes $(date +'%Y-%m-%d')"
+          git push
