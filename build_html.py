@@ -298,18 +298,25 @@ async function runQA() {{
 
   const systemPrompt = `You are a research assistant for the Breakfast Leadership Show podcast knowledge base. You have access to a dataset of over 1,000 episodes. When the user asks a question, return a JSON array of the most relevant episode_url values from the dataset (up to 15), ranked by relevance. For each match also include a "relevance" field: one sentence explaining why this episode fits the query. Return ONLY a JSON array of objects with shape: {{"episode_url": "...", "relevance": "..."}}, no preamble, no markdown fences.`;
 
-  // First do a fast client-side keyword pre-filter to cut the list down,
-  // then send at most 300 episodes to stay within API token limits.
+  // Client-side pre-filter: score every episode, send top 100 to the API.
+  // This keeps the payload well under 10K tokens on any query.
   const queryTerms = query.toLowerCase().split(/\s+/).filter(t => t.length > 2);
   const scored = EPISODES.map(ep => {{
     const hay = [ep.title, ep.guest, ...(ep.tags||[])].join(' ').toLowerCase();
-    const hits = queryTerms.filter(t => hay.includes(t)).length;
-    return {{ ep, hits }};
+    // Score: each matching term adds points; title matches worth more than tag matches
+    let score = 0;
+    for (const t of queryTerms) {{
+      if ((ep.title||'').toLowerCase().includes(t)) score += 3;
+      if ((ep.guest||'').toLowerCase().includes(t)) score += 2;
+      if ((ep.tags||[]).join(' ').toLowerCase().includes(t)) score += 1;
+    }}
+    return {{ ep, score }};
   }});
-  // Sort: keyword matches first, then all remaining by date
-  const matched   = scored.filter(s => s.hits > 0).sort((a,b) => b.hits - a.hits).map(s => s.ep);
-  const unmatched = scored.filter(s => s.hits === 0).map(s => s.ep);
-  const pool = [...matched, ...unmatched].slice(0, 300);
+
+  // Top 100: keyword matches ranked by score, padded with most-recent episodes
+  const withHits = scored.filter(s => s.score > 0).sort((a,b) => b.score - a.score).map(s => s.ep);
+  const recent   = scored.filter(s => s.score === 0).map(s => s.ep).slice(0, Math.max(0, 100 - withHits.length));
+  const pool = [...withHits, ...recent].slice(0, 100);
 
   const compactIndex = pool.map(ep => ({{
     title: ep.title,
@@ -319,7 +326,7 @@ async function runQA() {{
     episode_url: ep.episode_url,
   }}));
 
-  const userMessage = `Episode index (${{compactIndex.length}} episodes, pre-filtered by relevance):
+  const userMessage = `Episode index (${{compactIndex.length}} most relevant episodes):
 ${{JSON.stringify(compactIndex)}}
 
 User question: ${{query}}`;
