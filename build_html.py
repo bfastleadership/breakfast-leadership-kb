@@ -363,15 +363,17 @@ User question: ${{query}}`;
     // Build URL → episode lookup for instant local enrichment
     const byUrl = Object.fromEntries(EPISODES.map(e => [e.episode_url, e]));
 
-    const cards = aiResults.slice(0, 15).map((r, i) => {{
-      const ep = byUrl[r.episode_url] || {{}};
-      const title = ep.title || r.title || 'Untitled';
-      const url   = r.episode_url || ep.episode_url || '';
-      const guest = ep.guest || r.guest || null;
-      const date  = ep.pub_date || r.pub_date || '';
-      const tags  = ep.tags || r.tags || [];
+    const cards = aiResults.slice(0, 15).flatMap((r, i) => {{
+      const ep = byUrl[r.episode_url];
+      // Skip results where the URL doesn't match a real episode (avoids "Untitled" / 404s)
+      if (!ep || !ep.title) return [];
+      const title = ep.title;
+      const url   = ep.episode_url;
+      const guest = ep.guest || null;
+      const date  = ep.pub_date || '';
+      const tags  = ep.tags || [];
       const why   = r.relevance || r.reason || '';
-      return `
+      return [`
       <div class="qa-result-card">
         <div class="ep-title">
           <span class="qa-rank">#${{i+1}}</span>
@@ -384,7 +386,7 @@ User question: ${{query}}`;
           ${{tags.map(t => `<span class="tag-pill">${{escHtml(t)}}</span>`).join('')}}
         </div>
         ${{why ? `<div class="qa-relevance">${{escHtml(why)}}</div>` : ''}}
-      </div>`;
+      </div>`];
     }});
     $('qa-results').innerHTML = cards.join('');
 

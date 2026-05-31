@@ -104,6 +104,10 @@ def parse_feed_page(url: str):
         itunes_ep_el = item.find("itunes:episode", NAMESPACES)
         itunes_episode = itunes_ep_el.text.strip() if itunes_ep_el is not None and itunes_ep_el.text else None
 
+        # Skip episodes with no title or no valid URL
+        if not title or not episode_url or "podbean.com" not in episode_url:
+            continue
+
         episode_number = extract_episode_number(title, itunes_episode)
         guest = extract_guest(title)
 
