@@ -1,5 +1,13 @@
 [
   {
+    "title": "Deep Dive:  Stop Automating Failure",
+    "pub_date": "2026-07-24",
+    "episode_number": "1392",
+    "guest": null,
+    "description": "The \"Deep Dive\" into global expansion and AI adoption, featuring insights from Dr. Shan Nair on the Breakfast Leadership Show, centers on the idea that operational infrastructure, rather than strategy, is the true bedrock of successful scaling,,. The Core Thesis: \"Automating Failure Faster\" The primary risk for modern organizations is not the failure to adopt technology, but the decision to automate broken processes,. Dr. Nair, a former nuclear physicist, argues that unless the underlying systems are \"rock solid,\" automation merely accelerates operational collapse. Executives are encouraged to ask whether a process is actually efficient before tasking an AI to execute it. Key Insights on Infrastructure &amp; Compliance Infrastructure over Strategy: Companies entering new markets rarely fail because of a bad business thesis; they fail due to \"unforced errors\" such as payroll mistakes, missed compliance filings, or data breaches. Compliance as a Universal Standard: Dr. Nair’s firm applies GDPR standards globally, regardless of local regulations, to maintain a high level of data integrity and minimize liability. Data Sovereignty: To protect sensitive information (e.g., sick leave records, home addresses), organizations should build AI systems internally rather than routing data through public tools,. Institutional Knowledge as an Asset: Scaling efficiently requires treating knowledge as infrastructure—leveraging solutions found in one jurisdiction (like Belgium) to solve similar problems in another (like the Netherlands) instead of starting from zero. The \"Quiet Risk\": Erosion of Expertise A significant concern raised in the deep dive is the erosion of the learning curve for junior staff. If AI handles all foundational tasks, the next generation of experts may never build the necessary judgment or \"learn the hard way\",. Dr. Nair warns that organizations must document the reasoning behind decisions, not just the procedural steps, to survive novel problems once current experts retire. Strategic Recommendations for Leadership Test the SOP First: Validate the Standard Operating Procedure before automation to ensure you aren't doing the \"wrong thing faster\". Wall Off Sensitive Data: Maintain strict discipline regarding data privacy by isolating sensitive information from public AI models. Fund the Learning Curve: Intentionally create pathways for human staff to build slow-form judgment that AI cannot replicate. Audit the Operating System: Success depends on whether your current structure can support AI, rather than just the decision to use it,. https://BreakfastLeadership.com/ to get help with your AI deployment",
+    "episode_url": "https://bfastleadership.podbean.com/e/deep-dive-stop-automating-failure/"
+  },
+  {
     "title": "Antoniette Roze on How Public Speaking That Drives Action: Turning Voice into Leadership Impact",
     "pub_date": "2026-07-22",
     "episode_number": "1354",
@@ -7982,13 +7990,5 @@
     "guest": null,
     "description": "Entrepreneurs should use measured risk, instead of fearing risk",
     "episode_url": "https://bfastleadership.podbean.com/e/episode-080-entrepreneurs-should-not-be-afraid-of-risk/"
-  },
-  {
-    "title": "Interview with Dorie Clark",
-    "pub_date": "2018-09-04",
-    "episode_number": "304",
-    "guest": "Dorie Clark",
-    "description": "Dorie discusses her latest book Entrepreneurial You , and her study of 6/7/8 figure entrepreneurs and how they reached success https://DorieClark.com",
-    "episode_url": "https://bfastleadership.podbean.com/e/episode-079-interview-with-dorie-clark-with-dorieclarkcom/"
   }
 ]
