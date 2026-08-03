@@ -200,7 +200,7 @@ function buildSidebar() {
       <span>${escHtml(tag)}</span><span class="count">${cnt}</span></div>`;
   }
   container.innerHTML = html;
-  $('ep-total-header').textContent = EPISODES.length + ' episodes';
+  $('ep-total-header').textContent = '1,000+ episodes and growing';
 }
 
 function setTag(tag) {
@@ -231,7 +231,7 @@ function renderList() {
   else if (sort === 'date-asc') eps = [...eps].sort((a,b) => (a.pub_date||'').localeCompare(b.pub_date||''));
   else eps = [...eps].sort((a,b) => (a.title||'').localeCompare(b.title||''));
 
-  $('result-count').textContent = eps.length === EPISODES.length ? `${EPISODES.length} episodes` : `${eps.length} of ${EPISODES.length} episodes`;
+  $('result-count').textContent = eps.length === EPISODES.length ? `1,000+ episodes and growing` : `${eps.length} of 1,000+ episodes`;
 
   if (!eps.length) {
     $('episode-list').innerHTML = '<div class="no-results">No episodes match your search.</div>';
