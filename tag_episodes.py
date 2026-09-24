@@ -27,11 +27,11 @@ def get_tags(client: anthropic.Anthropic, title: str, description: str) -> list[
     user_msg = f"Title: {title}\n\nDescription: {description[:1500]}"
     response = client.messages.create(
         model="claude-haiku-4-5-20251001",
-        max_tokens=200,
+        max_tokens=1024,
         system=SYSTEM_PROMPT,
         messages=[{"role": "user", "content": user_msg}],
     )
-    text = response.content[0].text.strip()
+    text = "".join(b.text for b in response.content if getattr(b, "type", None) == "text").strip()
     # Parse JSON array
     tags = json.loads(text)
     # Validate all tags are in taxonomy
