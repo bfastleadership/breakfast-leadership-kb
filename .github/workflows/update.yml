@@ -25,7 +25,7 @@ jobs:
         run: pip install anthropic
 
       - name: Fetch latest episodes
-        run: python fetch_episodes.py
+        run: SIMPLECAST_API_TOKEN="${{ secrets.SIMPLECAST_API_TOKEN }}" python fetch_episodes.py
 
       - name: Tag episodes (AI)
         env:
