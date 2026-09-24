@@ -8,7 +8,7 @@ from datetime import datetime
 from urllib.request import urlopen, Request
 from urllib.error import URLError
 
-FEED_URL = "https://feed.podbean.com/bfastleadership/feed.xml"
+FEED_URL = "https://feeds.simplecast.com/XfaIg_7t"
 
 NAMESPACES = {
     "itunes": "http://www.itunes.com/dtds/podcast-1.0.dtd",
@@ -87,7 +87,7 @@ def parse_feed_page(url: str):
         episode_url = link_el.text.strip() if link_el is not None and link_el.text else ""
 
         enclosure = item.find("enclosure")
-        if not episode_url and enclosure is not None:
+        if enclosure is not None:
             episode_url = enclosure.get("url", "")
 
         desc_el = item.find("description")
@@ -105,7 +105,7 @@ def parse_feed_page(url: str):
         itunes_episode = itunes_ep_el.text.strip() if itunes_ep_el is not None and itunes_ep_el.text else None
 
         # Skip episodes with no title or no valid URL
-        if not title or not episode_url or "podbean.com" not in episode_url:
+        if not title or not episode_url:
             continue
 
         episode_number = extract_episode_number(title, itunes_episode)
