@@ -1,30 +1,34 @@
 #!/usr/bin/env python3
-"""Fetch all episodes from the Breakfast Leadership Show RSS feed and save as episodes.json."""
+"""Fetch all episodes from the Breakfast Leadership Show via the Simplecast API and save as episodes.json.
+
+The public Simplecast RSS feed is capped (~600 most-recent episodes). The Simplecast API returns the
+full catalog (1,000+ episodes) with structured fields and clean per-episode page URLs. If a
+SIMPLECAST_API_TOKEN environment variable is present it is sent as a Bearer token; otherwise the
+public (unauthenticated) endpoint is used.
+"""
 
 import json
+import os
 import re
-import xml.etree.ElementTree as ET
+import time
 from datetime import datetime
 from urllib.request import urlopen, Request
 from urllib.error import URLError
 
-FEED_URL = "https://feeds.simplecast.com/XfaIg_7t"
+# Show identifier (Simplecast podcast id for the Breakfast Leadership Show).
+PODCAST_ID = "b517f462-4d31-4d34-8280-ea886d3d355e"
+API_BASE = f"https://api.simplecast.com/podcasts/{PODCAST_ID}/episodes"
+# Public per-episode page, built from each episode's slug.
+SITE_BASE = "https://bfastleadership.simplecast.com/episodes"
+PAGE_LIMIT = 100
 
-NAMESPACES = {
-    "itunes": "http://www.itunes.com/dtds/podcast-1.0.dtd",
-    "content": "http://purl.org/rss/1.0/modules/content/",
-    "atom": "http://www.w3.org/2005/Atom",
-}
-
-# Patterns to extract guest names from titles
-# Priority order: "with Name" / "featuring Name" first, then "Name |" prefix last
+# Patterns to extract guest names from titles (Simplecast has no dedicated guest field).
+# Priority order: "with Name" / "featuring Name" first, then "Name |" prefix last.
 GUEST_PATTERNS = [
-    # "...with John Smith" at end or before separator
     r"\|\s*([A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,3})\s*$",
     r"\bwith\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,3})(?:\s*[,\|\(]|$)",
     r"\bfeaturing\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,3})(?:\s*[,\|\(]|$)",
     r"\bft\.?\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,3})(?:\s*[,\|\(]|$)",
-    # "Name on/:" prefix — only match if followed by a topic word (not a single common word)
     r"^([A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,3})\s+on\s+",
 ]
 
@@ -43,9 +47,9 @@ def extract_guest(title: str):
     return None
 
 
-def extract_episode_number(title: str, itunes_episode):
-    if itunes_episode:
-        return itunes_episode
+def extract_episode_number(title: str, api_number):
+    if api_number:
+        return str(api_number)
     for pattern in EPISODE_NUM_PATTERNS:
         m = re.search(pattern, title)
         if m:
@@ -53,99 +57,80 @@ def extract_episode_number(title: str, itunes_episode):
     return None
 
 
-def parse_feed_page(url: str):
-    """Fetch one page of the feed; return (episodes, next_url)."""
-    req = Request(url, headers={"User-Agent": "Mozilla/5.0 (podcast-fetcher/1.0)"})
+def fetch_page(offset: int) -> dict:
+    """Fetch one page of episodes from the Simplecast API."""
+    url = f"{API_BASE}?limit={PAGE_LIMIT}&offset={offset}&sort=latest&status=published"
+    req = Request(url, headers={
+        "User-Agent": "Mozilla/5.0 (podcast-fetcher/1.0)",
+        "Accept": "application/json",
+    })
+    token = os.environ.get("SIMPLECAST_API_TOKEN")
+    if token:
+        req.add_header("Authorization", f"Bearer {token}")
     with urlopen(req, timeout=30) as resp:
-        data = resp.read()
+        return json.loads(resp.read())
 
-    root = ET.fromstring(data)
-    channel = root.find("channel")
-    if channel is None:
-        return [], None
 
-    # Look for atom:link rel="next"
-    next_url = None
-    for link in channel.findall("{http://www.w3.org/2005/Atom}link"):
-        if link.get("rel") == "next":
-            next_url = link.get("href")
-            break
-
-    episodes = []
-    for item in channel.findall("item"):
-        title_el = item.find("title")
-        title = title_el.text.strip() if title_el is not None and title_el.text else ""
-
-        pub_date_el = item.find("pubDate")
-        pub_date_raw = pub_date_el.text.strip() if pub_date_el is not None and pub_date_el.text else ""
-        try:
-            pub_date = datetime.strptime(pub_date_raw, "%a, %d %b %Y %H:%M:%S %z").strftime("%Y-%m-%d")
-        except ValueError:
-            pub_date = pub_date_raw
-
-        link_el = item.find("link")
-        episode_url = link_el.text.strip() if link_el is not None and link_el.text else ""
-
-        enclosure = item.find("enclosure")
-        if enclosure is not None:
-            episode_url = enclosure.get("url", "")
-
-        desc_el = item.find("description")
-        description = desc_el.text.strip() if desc_el is not None and desc_el.text else ""
-        # Also check itunes:summary
-        if not description:
-            summary_el = item.find("itunes:summary", NAMESPACES)
-            if summary_el is not None and summary_el.text:
-                description = summary_el.text.strip()
-        # Strip HTML tags from description
-        description = re.sub(r"<[^>]+>", " ", description)
-        description = re.sub(r"\s+", " ", description).strip()
-
-        itunes_ep_el = item.find("itunes:episode", NAMESPACES)
-        itunes_episode = itunes_ep_el.text.strip() if itunes_ep_el is not None and itunes_ep_el.text else None
-
-        # Skip episodes with no title or no valid URL
-        if not title or not episode_url:
-            continue
-
-        episode_number = extract_episode_number(title, itunes_episode)
-        guest = extract_guest(title)
-
-        episodes.append({
-            "title": title,
-            "pub_date": pub_date,
-            "episode_number": episode_number,
-            "guest": guest,
-            "description": description,
-            "episode_url": episode_url,
-        })
-
-    return episodes, next_url
+def to_pub_date(published_at):
+    if not published_at:
+        return ""
+    try:
+        return datetime.strptime(published_at, "%Y-%m-%dT%H:%M:%SZ").strftime("%Y-%m-%d")
+    except ValueError:
+        return published_at[:10]
 
 
 def fetch_all_episodes() -> list[dict]:
-    all_episodes = []
-    url = FEED_URL
-    page = 1
-
-    while url:
-        print(f"Fetching page {page}: {url}")
+    episodes = []
+    offset = 0
+    total = None
+    while True:
+        print(f"Fetching offset {offset} (limit {PAGE_LIMIT})...")
         try:
-            episodes, next_url = parse_feed_page(url)
+            data = fetch_page(offset)
         except URLError as e:
-            print(f"Error fetching {url}: {e}")
+            print(f"Error fetching offset {offset}: {e}")
             break
 
-        if not episodes:
-            print("No episodes found on this page, stopping.")
+        if total is None:
+            total = data.get("count")
+            print(f"  Catalog reports {total} episodes.")
+
+        page = data.get("collection", [])
+        if not page:
             break
 
-        all_episodes.extend(episodes)
-        print(f"  Got {len(episodes)} episodes (total so far: {len(all_episodes)})")
-        url = next_url
-        page += 1
+        for ep in page:
+            if not isinstance(ep, dict):
+                continue
+            if ep.get("status") != "published" or ep.get("is_hidden"):
+                continue
+            title = (ep.get("title") or "").strip()
+            slug = (ep.get("slug") or "").strip()
+            episode_url = f"{SITE_BASE}/{slug}" if slug else (ep.get("enclosure_url") or "")
+            if not title or not episode_url:
+                continue
 
-    return all_episodes
+            description = (ep.get("description") or "").strip()
+            description = re.sub(r"<[^>]+>", " ", description)
+            description = re.sub(r"\s+", " ", description).strip()
+
+            episodes.append({
+                "title": title,
+                "pub_date": to_pub_date(ep.get("published_at")),
+                "episode_number": extract_episode_number(title, ep.get("number")),
+                "guest": extract_guest(title),
+                "description": description,
+                "episode_url": episode_url,
+            })
+
+        print(f"  Got {len(page)} episodes (total so far: {len(episodes)})")
+        offset += PAGE_LIMIT
+        if total is not None and offset >= total:
+            break
+        time.sleep(0.3)  # be polite to the API between pages
+
+    return episodes
 
 
 if __name__ == "__main__":
