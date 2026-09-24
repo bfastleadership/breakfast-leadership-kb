@@ -33,7 +33,7 @@ def get_tags(client: anthropic.Anthropic, title: str, description: str) -> list[
     )
     text = "".join(b.text for b in response.content if getattr(b, "type", None) == "text").strip()
     # Parse JSON array
-    tags = json.loads(text)
+    tags = json.loads(text[text.find("["):text.rfind("]")+1])
     # Validate all tags are in taxonomy
     valid = [t for t in tags if t in TAXONOMY]
     return valid[:5] if valid else tags[:5]
