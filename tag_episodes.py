@@ -50,7 +50,7 @@ def main():
         with open(tagged_path, encoding="utf-8") as f:
             existing = json.load(f)
         for ep in existing:
-            if "tags" in ep:
+            if ep.get("tags"):
                 tagged_map[ep.get("episode_url") or ep.get("title", "")] = ep["tags"]
         print(f"Resuming: {len(tagged_map)} episodes already tagged.")
 
