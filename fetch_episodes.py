@@ -1,9 +1,17 @@
 #!/usr/bin/env python3
 """Fetch all episodes from the Breakfast Leadership Show via the Simplecast API and save as episodes.json.
 
-The public Simplecast RSS feed is capped (~600 most-recent episodes). The Simplecast API returns the
-full catalog (1,000+ episodes) with structured fields and clean per-episode page URLs. If a
-SIMPLECAST_API_TOKEN environment variable is present it is sent as a Bearer token; otherwise the
+Data (titles, descriptions, dates, the full 1,000+ catalog) comes from the Simplecast API, because its
+public RSS feed is capped (~600) and Apple's API only exposes the most recent ~200 episodes.
+
+Clickable links (link_url) point to Apple Podcasts, because the Simplecast episode pages do not load.
+Each Simplecast episode is matched to its Apple episode page by GUID; episodes Apple does not expose
+(older than ~mid-2025) fall back to the show's main Apple Podcasts page.
+
+episode_url stays a unique Simplecast slug URL and is used only as the internal key (de-duplication and
+the "Ask AI" result matching). link_url is what the page actually links to.
+
+If a SIMPLECAST_API_TOKEN environment variable is present it is sent as a Bearer token; otherwise the
 public (unauthenticated) endpoint is used.
 """
 
@@ -18,12 +26,19 @@ from urllib.error import URLError
 # Show identifier (Simplecast podcast id for the Breakfast Leadership Show).
 PODCAST_ID = "b517f462-4d31-4d34-8280-ea886d3d355e"
 API_BASE = f"https://api.simplecast.com/podcasts/{PODCAST_ID}/episodes"
-# Public per-episode page, built from each episode's slug.
+# Unique internal key per episode, built from each episode's slug (never shown; Simplecast pages do not load).
 SITE_BASE = "https://bfastleadership.simplecast.com/episodes"
 PAGE_LIMIT = 100
 
+# Apple Podcasts, used for the customer-facing links.
+APPLE_PODCAST_ID = "1207338410"
+APPLE_LOOKUP_URL = (
+    f"https://itunes.apple.com/lookup?id={APPLE_PODCAST_ID}"
+    "&country=ca&media=podcast&entity=podcastEpisode&limit=200"
+)
+APPLE_SHOW_URL = f"https://podcasts.apple.com/ca/podcast/breakfast-leadership-show/id{APPLE_PODCAST_ID}"
+
 # Patterns to extract guest names from titles (Simplecast has no dedicated guest field).
-# Priority order: "with Name" / "featuring Name" first, then "Name |" prefix last.
 GUEST_PATTERNS = [
     r"\|\s*([A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,3})\s*$",
     r"\bwith\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,3})(?:\s*[,\|\(]|$)",
@@ -55,6 +70,23 @@ def extract_episode_number(title: str, api_number):
         if m:
             return m.group(1)
     return None
+
+
+def fetch_apple_links() -> dict:
+    """Map Simplecast/Apple episode GUID -> Apple Podcasts episode page URL (recent ~200 episodes)."""
+    try:
+        req = Request(APPLE_LOOKUP_URL, headers={"User-Agent": "Mozilla/5.0 (podcast-fetcher/1.0)"})
+        with urlopen(req, timeout=30) as resp:
+            data = json.loads(resp.read())
+        links = {}
+        for r in data.get("results", []):
+            if r.get("wrapperType") == "podcastEpisode" and r.get("episodeGuid") and r.get("trackViewUrl"):
+                links[r["episodeGuid"]] = r["trackViewUrl"]
+        print(f"  Apple: mapped {len(links)} episode page links.")
+        return links
+    except Exception as e:
+        print(f"  Apple lookup failed ({e}); all links will use the show page.")
+        return {}
 
 
 def fetch_page(offset: int) -> dict:
@@ -122,6 +154,7 @@ def fetch_all_episodes() -> list[dict]:
                 "guest": extract_guest(title),
                 "description": description,
                 "episode_url": episode_url,
+                "guid": ep.get("guid"),  # temporary, used to match Apple links; removed before saving
             })
 
         print(f"  Got {len(page)} episodes (total so far: {len(episodes)})")
@@ -144,7 +177,17 @@ if __name__ == "__main__":
             seen.add(key)
             unique.append(ep)
 
-    print(f"\nTotal unique episodes: {len(unique)}")
+    # Attach customer-facing Apple link per episode (exact page where Apple has it, else the show page).
+    apple_links = fetch_apple_links()
+    matched = 0
+    for ep in unique:
+        guid = ep.pop("guid", None)
+        link = apple_links.get(guid)
+        if link:
+            matched += 1
+        ep["link_url"] = link or APPLE_SHOW_URL
+
+    print(f"\nTotal unique episodes: {len(unique)} (exact Apple links: {matched}, show-page fallback: {len(unique) - matched})")
     with open("episodes.json", "w", encoding="utf-8") as f:
         json.dump(unique, f, indent=2, ensure_ascii=False)
     print("Saved to episodes.json")
