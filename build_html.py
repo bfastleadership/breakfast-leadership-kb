@@ -255,7 +255,7 @@ function renderList() {{
       <div class="ep-header">
         ${{ep.episode_number ? `<span class="ep-num">#${{escHtml(ep.episode_number)}}</span>` : ''}}
         <div class="ep-title">
-          <a href="${{escHtml(ep.episode_url)}}" target="_blank" rel="noopener">${{escHtml(ep.title)}}</a>
+          <a href="${{escHtml(ep.link_url || ep.episode_url)}}" target="_blank" rel="noopener">${{escHtml(ep.title)}}</a>
         </div>
       </div>
       <div class="ep-meta">
@@ -368,7 +368,7 @@ User question: ${{query}}`;
       // Skip results where the URL doesn't match a real episode (avoids "Untitled" / 404s)
       if (!ep || !ep.title) return [];
       const title = ep.title;
-      const url   = ep.episode_url;
+      const url   = ep.link_url || ep.episode_url;
       const guest = ep.guest || null;
       const date  = ep.pub_date || '';
       const tags  = ep.tags || [];
